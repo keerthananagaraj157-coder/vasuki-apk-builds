@@ -1,392 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fruit Ninja Offline</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: #1a1a1a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            user-select: none;
-        }
-        #game-container {
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            border: 4px solid #333;
-            border-radius: 12px;
-            overflow: hidden;
-            background: radial-gradient(circle, #3a4750 0%, #080a0c 100%);
-        }
-        canvas {
-            display: block;
-            cursor: crosshair;
-        }
-        #ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #fff;
-            font-size: 24px;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            pointer-events: none;
-        }
-        #game-over {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: white;
-            display: none;
-            pointer-events: auto;
-        }
-        #game-over h1 {
-            font-size: 48px;
-            color: #ff4757;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.9);
-        }
-        #game-over p {
-            font-size: 20px;
-            margin-bottom: 20px;
-        }
-        .btn {
-            background-color: #2ed573;
-            color: white;
-            border: none;
-            padding: 12px 28px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            transition: 0.2s;
-        }
-        .btn:hover {
-            background-color: #26af5f;
-            transform: scale(1.05);
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Vasuki Search 3.0</title>
+<style>
+  body{font-family:sans-serif;margin:0;padding:0;background:#f1f1f1}
+  .container{max-width:800px;margin:auto;padding:20px;background:#fff}
+  h1{font-size:24px;text-align:center}
+  select, input[type=text], button{width:100%;padding:10px;margin:5px 0;border:1px solid #ccc;border-radius:4px}
+  button{background:#007bff;color:#fff;border:none}
+  button:hover{background:#0056b3}
+  .output{background:#fafafa;padding:10px;margin-top:10px;border:1px solid #ddd}
+  .item{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #eee}
+  @media (max-width:600px){
+    h1{font-size:20px}
+  }
+</style>
 </head>
 <body>
-
-<div id="game-container">
-    <div id="ui">Score: <span id="score">0</span></div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    
-    <div id="game-over">
-        <h1>GAME OVER</h1>
-        <p>Your Score: <span id="final-score">0</span></p>
-        <button class="btn" onclick="restartGame()">Play Again</button>
-    </div>
+<div class="container">
+  <h1>Vasuki Search 3.0</h1>
+  <select id="mode">
+    <option value="web">Google Web Search</option>
+    <option value="images">Google Image Search</option>
+    <option value="ai">AI Search Assistant</option>
+  </select>
+  <input type="text" id="query" placeholder="Enter your query here">
+  <button id="run">Run</button>
+  <div id="output" class="output"></div>
 </div>
 
 <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const scoreEl = document.getElementById("score");
-    const finalScoreEl = document.getElementById("final-score");
-    const gameOverScreen = document.getElementById("game-over");
+const API_KEY_SEARCH = 'YOUR_SEARCHAPI_KEY';
+const API_KEY_AI = 'YOUR_POLLINATIONS_KEY';
+const SEARCH_URL = 'https://www.searchapi.io/api/v1/search';
+const AI_URL = 'https://gen.pollinations.ai/v1/chat/completions';
 
-    let score = 0;
-    let isGameOver = false;
-    let gameInterval;
-    let spawnTimer = 0;
+async function fetchJSON(url, opts={}) {
+  try {
+    const res = await fetch(url, opts);
+    return await res.json();
+  } catch(e){
+    console.error(e);
+    return null;
+  }
+}
 
-    // Slice Trail (Blade)
-    let sliceTrail = [];
-    let isDrawing = false;
+function renderList(items, type='web'){
+  const out = document.getElementById('output');
+  out.innerHTML='';
+  items.forEach((item,i)=>{
+    const div = document.createElement('div');
+    div.className='item';
+    const title = document.createElement('h3');
+    title.textContent = (i+1)+'. '+(item.title||'No title');
+    div.appendChild(title);
+    const link = document.createElement('a');
+    link.href=item.link||item.original?.link||'#';
+    link.target='_blank';
+    link.rel='noopener';
+    link.textContent = item.link||item.original?.link||'No URL';
+    div.appendChild(link);
+    const desc = document.createElement('p');
+    desc.textContent = item.snippet||item.description||'';
+    div.appendChild(desc);
+    out.appendChild(div);
+  });
+}
 
-    // Game Entities
-    let fruits = [];
-    let particles = [];
+async function googleSearch(query){
+  const params = new URLSearchParams({
+    engine:'google',
+    q:query,
+    api_key:API_KEY_SEARCH,
+    gl:'in',
+    hl:'en',
+    safe:'active'
+  });
+  const data = await fetchJSON(SEARCH_URL+'?'+params);
+  if(data && data.organic_results){
+    renderList(data.organic_results);
+  }else{
+    document.getElementById('output').textContent='No results found.';
+  }
+}
 
-    const fruitTypes = [
-        { name: "Watermelon", color: "#ff4757", radius: 35, innerColor: "#2ed573" },
-        { name: "Orange", color: "#ffa502", radius: 30, innerColor: "#ff7f50" },
-        { name: "Apple", color: "#ff6b81", radius: 28, innerColor: "#ffffff" },
-        { name: "Bomb", color: "#2f3542", radius: 25, isBomb: true }
-    ];
+async function imageSearch(query){
+  const params = new URLSearchParams({
+    engine:'google_images',
+    q:query,
+    api_key:API_KEY_SEARCH,
+    gl:'in',
+    hl:'en',
+    safe:'active'
+  });
+  const data = await fetchJSON(SEARCH_URL+'?'+params);
+  if(data && data.images){
+    renderList(data.images, 'image');
+  }else{
+    document.getElementById('output').textContent='No images found.';
+  }
+}
 
-    class Fruit {
-        constructor() {
-            this.x = Math.random() * (canvas.width - 200) + 100;
-            this.y = canvas.height + 40;
-            
-            // Trajectory physics
-            const angle = Math.atan2((canvas.height / 2) - this.y, (canvas.width / 2) - this.x) + (Math.random() - 0.5) * 0.5;
-            const speed = Math.random() * 4 + 11;
-            
-            this.vx = Math.cos(angle) * speed * 1.2;
-            this.vy = Math.sin(angle) * speed * 1.4 - 3;
-            
-            this.gravity = 0.35;
-            this.sliced = false;
+async function aiSearch(query){
+  const responseText = document.getElementById('output');
+  responseText.textContent='AI processing…';
+  const body = {
+    model:'openai',
+    messages:[
+      {role:'system',content:'You are Vasuki Research AI. Explain information clearly. Use supplied webpage text as your source and do not invent facts.'},
+      {role:'user',content:query}
+    ],
+    temperature:0.4
+  };
+  const data = await fetchJSON(AI_URL,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':'Bearer '+API_KEY_AI
+    },
+    body:JSON.stringify(body)
+  });
+  if(data && data.choices && data.choices[0]){
+    responseText.textContent=data.choices[0].message.content;
+  }else{
+    responseText.textContent='AI failed to respond.';
+  }
+}
 
-            // Pick type (lower bomb chance)
-            const typeRoll = Math.random();
-            if (typeRoll < 0.2) {
-                this.type = fruitTypes[3]; // Bomb
-            } else {
-                this.type = fruitTypes[Math.floor(Math.random() * 3)];
-            }
-            
-            this.radius = this.type.radius;
-            this.rotation = 0;
-            this.rotSpeed = (Math.random() - 0.5) * 0.1;
-        }
-
-        update() {
-            this.x += this.vx;
-            this.y += this.vy;
-            this.vy += this.gravity;
-            this.rotation += this.rotSpeed;
-        }
-
-        draw() {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.rotation);
-
-            if (this.type.isBomb) {
-                // Draw Bomb
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.type.color;
-                ctx.fill();
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = "#ff4757";
-                ctx.stroke();
-                
-                // Fuse
-                ctx.beginPath();
-                ctx.moveTo(0, -this.radius);
-                ctx.lineTo(5, -this.radius - 12);
-                ctx.strokeStyle = "#ffa502";
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            } else {
-                // Draw Fruit Body
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.type.color;
-                ctx.fill();
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = "#fff";
-                ctx.stroke();
-
-                // Inner pulp detail
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius * 0.6, 0, Math.PI * 2);
-                ctx.fillStyle = this.type.innerColor;
-                ctx.fill();
-            }
-
-            ctx.restore();
-        }
-    }
-
-    class Particle {
-        constructor(x, y, color) {
-            this.x = x;
-            this.y = y;
-            this.color = color;
-            this.radius = Math.random() * 5 + 3;
-            const angle = Math.random() * Math.PI * 2;
-            const speed = Math.random() * 6 + 2;
-            this.vx = Math.cos(angle) * speed;
-            this.vy = Math.sin(angle) * speed;
-            this.alpha = 1;
-            this.decay = Math.random() * 0.03 + 0.02;
-        }
-
-        update() {
-            this.x += this.vx;
-            this.y += this.vy;
-            this.vy += 0.2; // Gravity on splashes
-            this.alpha -= this.decay;
-        }
-
-        draw() {
-            ctx.save();
-            ctx.globalAlpha = Math.max(this.alpha, 0);
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = this.color;
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    // Input Handlers (Mouse & Touch)
-    function handleStart(e) {
-        if (isGameOver) return;
-        isDrawing = true;
-        sliceTrail = [];
-        const pos = getEventPos(e);
-        sliceTrail.push(pos);
-    }
-
-    function handleMove(e) {
-        if (!isDrawing || isGameOver) return;
-        const pos = getEventPos(e);
-        sliceTrail.push(pos);
-        if (sliceTrail.length > 10) sliceTrail.shift(); // Keep trail short
-
-        checkSliceIntersection();
-    }
-
-    function handleEnd() {
-        isDrawing = false;
-        sliceTrail = [];
-    }
-
-    function getEventPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
-    }
-
-    // Event Listeners
-    canvas.addEventListener("mousedown", handleStart);
-    canvas.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleEnd);
-
-    canvas.addEventListener("touchstart", handleStart);
-    canvas.addEventListener("touchmove", handleMove);
-    window.addEventListener("touchend", handleEnd);
-
-    // Collision Check for Blade Slicing
-    bandinganLineCircle = (p1, p2, circle) => {
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const len = Math.hypot(dx, dy);
-        if (len === 0) return false;
-        
-        const dot = ((circle.x - p1.x) * dx + (circle.y - p1.y) * dy) / (len * len);
-        const clampedDot = Math.max(0, Math.min(1, dot));
-        
-        const nearestX = p1.x + clampedDot * dx;
-        const nearestY = p1.y + clampedDot * dy;
-        
-        const dist = Math.hypot(circle.x - nearestX, circle.y - nearestY);
-        return dist < circle.radius;
-    };
-
-    function checkSliceIntersection() {
-        if (sliceTrail.length < 2) return;
-        const p1 = sliceTrail[sliceTrail.length - 2];
-        const p2 = sliceTrail[sliceTrail.length - 1];
-
-        fruits.forEach(fruit => {
-            if (!fruit.sliced && bandinganLineCircle(p1, p2, fruit)) {
-                fruit.sliced = true;
-                if (fruit.type.isBomb) {
-                    triggerGameOver();
-                } else {
-                    score += 10;
-                    scoreEl.innerText = score;
-                    // Create juice splash particles
-                    for (let i = 0; i < 15; i++) {
-                        particles.push(new Particle(fruit.x, fruit.y, fruit.type.innerColor));
-                    }
-                }
-            }
-        });
-    }
-
-    function triggerGameOver() {
-        isGameOver = true;
-        finalScoreEl.innerText = score;
-        gameOverScreen.style.display = "block";
-    }
-
-    function restartGame() {
-        score = 0;
-        scoreEl.innerText = score;
-        fruits = [];
-        particles = [];
-        isGameOver = false;
-        gameOverScreen.style.display = "none";
-        spawnTimer = 0;
-    }
-
-    // Main Game Loop
-    function gameLoop() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (!isGameOver) {
-            // Spawn fruits
-            spawnTimer++;
-            if (spawnTimer > 55) {
-                fruits.push(new Fruit());
-                // Occasionally spawn a double fruit pack
-                if (Math.random() > 0.6) {
-                    fruits.push(new Fruit());
-                }
-                spawnTimer = 0;
-            }
-
-            // Update & Draw Fruits
-            for (let i = fruits.length - 1; i >= 0; i--) {
-                let f = fruits[i];
-                f.update();
-                
-                // Remove out of bounds (bottom) unsliced fruits
-                if (f.y > canvas.height + 100) {
-                    fruits.splice(i, 1);
-                    continue;
-                }
-
-                if (f.sliced) {
-                    fruits.splice(i, 1); // Remove sliced fruit immediately
-                } else {
-                    f.draw();
-                }
-            }
-        }
-
-        // Update & Draw Splash Particles
-        for (let i = particles.length - 1; i >= 0; i--) {
-            let p = particles[i];
-            p.update();
-            p.draw();
-            if (p.alpha <= 0) {
-                particles.splice(i, 1);
-            }
-        }
-
-        // Draw Blade Trail
-        if (isDrawing && sliceTrail.length > 1) {
-            ctx.beginPath();
-            ctx.moveTo(sliceTrail[0].x, sliceTrail[0].y);
-            for (let i = 1; i < sliceTrail.length; i++) {
-                ctx.lineTo(sliceTrail[i].x, sliceTrail[i].y);
-            }
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-            ctx.lineWidth = 5;
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            ctx.stroke();
-        }
-
-        requestAnimationFrame(gameLoop);
-    }
-
-    // Start Loop
-    gameLoop();
+document.getElementById('run').addEventListener('click', ()=>{
+  const mode=document.getElementById('mode').value;
+  const q=document.getElementById('query').value.trim();
+  if(!q){alert('Please enter a query');return;}
+  if(mode==='web')googleSearch(q);
+  else if(mode==='images')imageSearch(q);
+  else if(mode==='ai')aiSearch(q);
+});
 </script>
-
 </body>
 </html>
-
