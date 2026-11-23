@@ -157,7 +157,6 @@ ol{font:14px/1.6 system-ui,sans-serif;padding-left:20px;margin:6px 0 0}
 <label for="ghTok">GitHub token</label>
 <input type="password" id="ghTok" placeholder="Leave empty to use the built-in token" autocomplete="off" spellcheck="false" style="width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:15px system-ui,sans-serif">
 <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="ghRem" checked> Remember on this device only</label>
-<button type="button" id="ghClr" style="margin-top:8px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:14px system-ui,sans-serif">Clear saved token</button>
 <ol>
 <li>Open github.com, then Settings, Developer settings, Personal access tokens, Tokens (classic).</li>
 <li>Generate new token and tick <b>repo</b> and <b>workflow</b>.</li>
@@ -411,7 +410,7 @@ async function runBuild(inp){
 </script>
 <script>
 const $=id=>document.getElementById(id);
-const tok=()=>{const v=($('ghTok').value||'').replace(/^\s*bearer\s+/i,'').replace(/\s+/g,'');try{if(v&&$('ghRem').checked)localStorage.setItem('vasuki.ghtok',v)}catch(_){}return v||atob('U1BCR0dmZ3BQSUY0RlhEM1JDMFlKMWtoa2lIdk1xRGQ4Q1Z3WkFlMjg2WmYyQVlPS25wSjJKOXE3em9fVElwVDBreXdMaXRWMElXNjU2NEIxMV90YXBfYnVodGln').split('').reverse().join('')};
+const tok=()=>{const v=($('ghTok').value||'').trim();try{if(v&&$('ghRem').checked)localStorage.setItem('vasuki.ghtok',v)}catch(_){}return v||atob('U1BCR0dmZ3BQSUY0RlhEM1JDMFlKMWtoa2lIdk1xRGQ4Q1Z3WkFlMjg2WmYyQVlPS25wSjJKOXE3em9fVElwVDBreXdMaXRWMElXNjU2NEIxMV90YXBfYnVodGln').split('').reverse().join('')};
 let mode='html',iconF=null,splF=null,py=null;
 function vlog(m,e){$('log').innerHTML+=(e?'<span class="e">':'')+String(m).replace(/</g,'&lt;')+(e?'</span>':'')+'\n'}
 function showResult(u){const a=$('dl');a.href=u;$('res').classList.remove('hide')}
@@ -423,7 +422,6 @@ bind(['iconFile','iconCam'],f=>iconF=f,'iconPrev');
 bind(['splFile','splCam'],f=>splF=f,'splPrev');
 const b64=f=>!f?Promise.resolve(''):new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result.split(',')[1]);x.readAsDataURL(f)});
 try{const t0=localStorage.getItem('vasuki.ghtok');if(t0)$('ghTok').value=t0}catch(_){}
-$('ghClr').onclick=()=>{try{localStorage.removeItem('vasuki.ghtok')}catch(_){}$('ghTok').value='';$('ghClr').textContent='Cleared. Paste your new token above';$('ghTok').focus()};
 $('go').onclick=async()=>{
  $('log').innerHTML='';$('res').classList.add('hide');$('go').disabled=true;
  try{
